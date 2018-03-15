@@ -1,15 +1,13 @@
 package com.marklogic.mgmt;
 
-import org.springframework.http.ResponseEntity;
-
 public class SaveReceipt {
 
     private String resourceId;
     private String payload;
-    private ResponseEntity<String> response;
+    private ManageResponse response;
     private String path;
 
-    public SaveReceipt(String resourceId, String payload, String path, ResponseEntity<String> response) {
+    public SaveReceipt(String resourceId, String payload, String path, ManageResponse response) {
         super();
         this.resourceId = resourceId;
         this.payload = payload;
@@ -18,7 +16,7 @@ public class SaveReceipt {
     }
 
     public boolean hasLocationHeader() {
-        return response != null && response.getHeaders().getLocation() != null;
+        return response != null && response.getLocationHeader() != null;
     }
 
     public String getResourceId() {
@@ -29,7 +27,7 @@ public class SaveReceipt {
         return path;
     }
 
-    public ResponseEntity<String> getResponse() {
+    public ManageResponse getResponse() {
         return response;
     }
 

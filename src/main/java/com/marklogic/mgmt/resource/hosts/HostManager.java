@@ -2,10 +2,10 @@ package com.marklogic.mgmt.resource.hosts;
 
 import com.marklogic.mgmt.AbstractManager;
 import com.marklogic.mgmt.ManageClient;
+import com.marklogic.mgmt.ManageResponse;
 import com.marklogic.rest.util.Fragment;
 import org.jdom2.Element;
 import org.jdom2.Namespace;
-import org.springframework.http.ResponseEntity;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -47,7 +47,7 @@ public class HostManager extends AbstractManager {
         return client.getXml("/manage/v2/hosts");
     }
 
-    public ResponseEntity<String> setHostToGroup(String hostIdOrName, String groupIdOrName) {
+    public ManageResponse setHostToGroup(String hostIdOrName, String groupIdOrName) {
         String json = format("{\"group\":\"%s\"}", groupIdOrName);
         String url = format("/manage/v2/hosts/%s/properties", hostIdOrName);
         return client.putJson(url, json);

@@ -2,12 +2,11 @@ package com.marklogic.appdeployer.command;
 
 import com.marklogic.appdeployer.AppConfig;
 import com.marklogic.appdeployer.ConfigDir;
-import com.marklogic.mgmt.admin.AdminManager;
-import com.marklogic.mgmt.resource.ResourceManager;
+import com.marklogic.mgmt.ManageResponse;
 import com.marklogic.mgmt.SaveReceipt;
 import com.marklogic.mgmt.admin.ActionRequiringRestart;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.ResponseEntity;
+import com.marklogic.mgmt.admin.AdminManager;
+import com.marklogic.mgmt.resource.ResourceManager;
 
 import java.io.File;
 import java.net.URI;
@@ -113,18 +112,15 @@ public abstract class AbstractResourceCommand extends AbstractUndoableCommand {
     	if (receipt == null) {
     		return;
 	    }
-    	ResponseEntity<String> response = receipt.getResponse();
+    	ManageResponse response = receipt.getResponse();
     	if (response != null) {
-    		HttpHeaders headers = response.getHeaders();
-    		if (headers != null) {
-			    URI uri = headers.getLocation();
-			    if (uri != null && "/admin/v1/timestamp".equals(uri.getPath())) {
-				    AdminManager adminManager = context.getAdminManager();
-				    if (adminManager != null) {
-					    adminManager.waitForRestart();
-				    } else {
-					    logger.warn("Location header indicates ML is restarting, but no AdminManager available to support waiting for a restart");
-				    }
+		    URI uri = response.getLocationHeader();
+		    if (uri != null && "/admin/v1/timestamp".equals(uri.getPath())) {
+			    AdminManager adminManager = context.getAdminManager();
+			    if (adminManager != null) {
+				    adminManager.waitForRestart();
+			    } else {
+				    logger.warn("Location header indicates ML is restarting, but no AdminManager available to support waiting for a restart");
 			    }
 		    }
 	    }

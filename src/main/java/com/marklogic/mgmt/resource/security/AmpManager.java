@@ -1,12 +1,12 @@
 package com.marklogic.mgmt.resource.security;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.marklogic.mgmt.resource.AbstractResourceManager;
 import com.marklogic.mgmt.ManageClient;
+import com.marklogic.mgmt.ManageResponse;
 import com.marklogic.mgmt.SaveReceipt;
+import com.marklogic.mgmt.resource.AbstractResourceManager;
 import com.marklogic.rest.util.Fragment;
 import com.marklogic.rest.util.ResourcesFragment;
-import org.springframework.http.ResponseEntity;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -50,8 +50,8 @@ public class AmpManager extends AbstractResourceManager {
 	public SaveReceipt save(String payload) {
 		String resourceId = getResourceId(payload);
 		String label = getResourceName();
-		String path = null;
-		ResponseEntity<String> response = null;
+		String path;
+		ManageResponse response;
 		if (ampExists(payload)) {
 			return updateResource(payload, resourceId);
 		} else {

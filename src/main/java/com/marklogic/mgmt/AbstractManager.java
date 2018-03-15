@@ -1,7 +1,6 @@
 package com.marklogic.mgmt;
 
 import com.marklogic.client.ext.helper.LoggingObject;
-import org.springframework.http.ResponseEntity;
 import org.springframework.util.ClassUtils;
 
 public class AbstractManager extends LoggingObject {
@@ -47,7 +46,7 @@ public class AbstractManager extends LoggingObject {
         return payloadParser.getPayloadFieldValue(payload, getIdFieldName());
     }
 
-    protected ResponseEntity<String> putPayload(ManageClient client, String path, String payload) {
+    protected ManageResponse putPayload(ManageClient client, String path, String payload) {
         boolean requiresSecurityUser = useSecurityUser();
         if (payloadParser.isJsonPayload(payload)) {
             return requiresSecurityUser ? client.putJsonAsSecurityUser(path, payload) : client.putJson(path, payload);
@@ -55,7 +54,7 @@ public class AbstractManager extends LoggingObject {
         return requiresSecurityUser ? client.putXmlAsSecurityUser(path, payload) : client.putXml(path, payload);
     }
 
-    protected ResponseEntity<String> postPayload(ManageClient client, String path, String payload) {
+    protected ManageResponse postPayload(ManageClient client, String path, String payload) {
         boolean requiresSecurityUser = useSecurityUser();
         if (payloadParser.isJsonPayload(payload)) {
             return requiresSecurityUser ? client.postJsonAsSecurityUser(path, payload) : client.postJson(path, payload);

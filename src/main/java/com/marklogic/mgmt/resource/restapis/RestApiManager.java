@@ -3,11 +3,11 @@ package com.marklogic.mgmt.resource.restapis;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.marklogic.client.ext.helper.LoggingObject;
 import com.marklogic.mgmt.ManageClient;
+import com.marklogic.mgmt.ManageResponse;
 import com.marklogic.mgmt.PayloadParser;
 import com.marklogic.mgmt.resource.appservers.ServerManager;
 import com.marklogic.mgmt.resource.databases.DatabaseManager;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
 
 /**
  * For /v1/rest-apis. Currently only supports JSON files.
@@ -21,18 +21,18 @@ public class RestApiManager extends LoggingObject {
 		this.client = client;
 	}
 
-	public ResponseEntity<String> createRestApi(String json) {
+	public ManageResponse createRestApi(String json) {
 		return createRestApi(extractNameFromJson(json), json);
 	}
 
-	public ResponseEntity<String> createRestApi(String name, String json) {
+	public ManageResponse createRestApi(String name, String json) {
 		logger.info("Checking for existence of REST API with name: " + name);
 		if (restApiServerExists(name)) {
 			logger.info("REST API server already exists with name: " + name);
 			return null;
 		} else {
 			logger.info("Creating REST API: " + json);
-			ResponseEntity<String> re = client.postJson("/v1/rest-apis", json);
+			ManageResponse re = client.postJson("/v1/rest-apis", json);
 			logger.info("Created REST API");
 			return re;
 		}

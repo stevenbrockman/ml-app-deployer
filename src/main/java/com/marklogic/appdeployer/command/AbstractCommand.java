@@ -2,8 +2,8 @@ package com.marklogic.appdeployer.command;
 
 import com.marklogic.client.ext.helper.LoggingObject;
 import com.marklogic.mgmt.PayloadParser;
-import com.marklogic.mgmt.resource.ResourceManager;
 import com.marklogic.mgmt.SaveReceipt;
+import com.marklogic.mgmt.resource.ResourceManager;
 import org.springframework.util.FileCopyUtils;
 
 import java.io.File;
@@ -12,7 +12,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -197,7 +196,7 @@ public abstract class AbstractCommand extends LoggingObject implements Command {
      * @param context
      */
     protected void storeTokenForResourceId(SaveReceipt receipt, CommandContext context) {
-        URI location = receipt.getResponse() != null ? receipt.getResponse().getHeaders().getLocation() : null;
+        URI location = receipt.getResponse() != null ? receipt.getResponse().getLocationHeader() : null;
 
         String idValue = null;
         String resourceName = null;

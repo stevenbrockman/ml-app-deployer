@@ -1,9 +1,9 @@
 package com.marklogic.mgmt.api.restapi;
 
+import com.marklogic.mgmt.ManageResponse;
 import com.marklogic.mgmt.api.API;
 import com.marklogic.mgmt.api.ApiObject;
 import com.marklogic.mgmt.resource.restapis.RestApiManager;
-import org.springframework.http.ResponseEntity;
 
 public class RestApi extends ApiObject {
 
@@ -29,7 +29,7 @@ public class RestApi extends ApiObject {
     }
 
     public String save() {
-        ResponseEntity<String> re = new RestApiManager(api.getManageClient()).createRestApi(name, getJson());
+        ManageResponse re = new RestApiManager(api.getManageClient()).createRestApi(name, getJson());
         if (re == null) {
             return String.format("REST API with name %s already exists", name);
         } else {

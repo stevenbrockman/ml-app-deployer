@@ -1,12 +1,8 @@
 package com.marklogic.mgmt.resource;
 
-import com.marklogic.mgmt.DeleteReceipt;
-import com.marklogic.mgmt.ManageClient;
-import com.marklogic.mgmt.SaveReceipt;
-import com.marklogic.mgmt.AbstractManager;
+import com.marklogic.mgmt.*;
 import com.marklogic.rest.util.Fragment;
 import com.marklogic.rest.util.ResourcesFragment;
-import org.springframework.http.ResponseEntity;
 
 /**
  * This class makes a number of assumptions in order to simplify the implementation of common operations for a MarkLogic
@@ -101,7 +97,7 @@ public abstract class AbstractResourceManager extends AbstractManager implements
 		    logger.info(format("Creating %s: %s", label, resourceId));
 	    }
 	    String path = getCreateResourcePath(payload);
-	    ResponseEntity<String> response = postPayload(manageClient, path, payload);
+	    ManageResponse response = postPayload(manageClient, path, payload);
 	    if (logger.isInfoEnabled()) {
 		    logger.info(format("Created %s: %s", label, resourceId));
 	    }
@@ -134,7 +130,7 @@ public abstract class AbstractResourceManager extends AbstractManager implements
         String label = getResourceName();
         path = appendParamsAndValuesToPath(path, getUpdateResourceParams(payload));
         logger.info(format("Found %s with name of %s, so updating at path %s", label, resourceId, path));
-        ResponseEntity<String> response = putPayload(manageClient, path, payload);
+        ManageResponse response = putPayload(manageClient, path, payload);
         logger.info(format("Updated %s at %s", label, path));
         return new SaveReceipt(resourceId, payload, path, response);
     }

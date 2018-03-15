@@ -2,10 +2,10 @@ package com.marklogic.mgmt.resource.security;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.marklogic.mgmt.ManageClient;
+import com.marklogic.mgmt.ManageResponse;
 import com.marklogic.mgmt.resource.AbstractResourceManager;
 import com.marklogic.mgmt.util.ObjectMapperFactory;
 import com.marklogic.rest.util.Fragment;
-import org.springframework.http.ResponseEntity;
 
 /**
  * For 8.0-2, the docs suggest that either ID or name can be used for accessing a certificate template, but only ID
@@ -48,12 +48,12 @@ public class CertificateTemplateManager extends AbstractResourceManager {
         return getAsXml().getIdForNameOrId(name);
     }
 
-    public ResponseEntity<String> generateTemporaryCertificate(String templateIdOrName, String commonName) {
+    public ManageResponse generateTemporaryCertificate(String templateIdOrName, String commonName) {
         return generateTemporaryCertificate(templateIdOrName, commonName, 365, null, null, true);
     }
 
-    public ResponseEntity<String> generateTemporaryCertificate(String templateIdOrName, String commonName,
-            int validFor, String dnsName, String ipAddress, boolean ifNecessary) {
+    public ManageResponse generateTemporaryCertificate(String templateIdOrName, String commonName,
+                                                       int validFor, String dnsName, String ipAddress, boolean ifNecessary) {
         ObjectNode node = ObjectMapperFactory.getObjectMapper().createObjectNode();
         node.put("operation", "generate-temporary-certificate");
         node.put("valid-for", validFor);

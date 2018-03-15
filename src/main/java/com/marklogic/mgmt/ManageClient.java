@@ -7,7 +7,10 @@ import com.marklogic.rest.util.Fragment;
 import com.marklogic.rest.util.RestConfig;
 import com.marklogic.rest.util.RestTemplateUtil;
 import org.jdom2.Namespace;
-import org.springframework.http.*;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
@@ -104,9 +107,9 @@ public class ManageClient extends LoggingObject {
     	this.securityUserRestTemplate = adminRestTemplate;
     }
 
-    public ResponseEntity<String> putJson(String path, String json) {
+    public ManageResponse putJson(String path, String json) {
         logRequest(path, "JSON", "PUT");
-        return restTemplate.exchange(buildUri(path), HttpMethod.PUT, buildJsonEntity(json), String.class);
+        return new RestTemplateResponse(restTemplate.exchange(buildUri(path), HttpMethod.PUT, buildJsonEntity(json), String.class));
     }
 
 	/**
@@ -117,18 +120,18 @@ public class ManageClient extends LoggingObject {
 	 * @return
 	 */
 	@Deprecated
-    public ResponseEntity<String> putJsonAsAdmin(String path, String json) {
+    public ManageResponse putJsonAsAdmin(String path, String json) {
 		return putJsonAsSecurityUser(path, json);
     }
 
-	public ResponseEntity<String> putJsonAsSecurityUser(String path, String json) {
+	public ManageResponse putJsonAsSecurityUser(String path, String json) {
 		logSecurityUserRequest(path, "JSON", "PUT");
-		return securityUserRestTemplate.exchange(buildUri(path), HttpMethod.PUT, buildJsonEntity(json), String.class);
+		return new RestTemplateResponse(securityUserRestTemplate.exchange(buildUri(path), HttpMethod.PUT, buildJsonEntity(json), String.class));
 	}
 
-    public ResponseEntity<String> putXml(String path, String xml) {
+    public ManageResponse putXml(String path, String xml) {
         logRequest(path, "XML", "PUT");
-        return restTemplate.exchange(buildUri(path), HttpMethod.PUT, buildXmlEntity(xml), String.class);
+        return new RestTemplateResponse(restTemplate.exchange(buildUri(path), HttpMethod.PUT, buildXmlEntity(xml), String.class));
     }
 
 	/**
@@ -139,18 +142,18 @@ public class ManageClient extends LoggingObject {
 	 * @return
 	 */
 	@Deprecated
-    public ResponseEntity<String> putXmlAsAdmin(String path, String xml) {
+    public ManageResponse putXmlAsAdmin(String path, String xml) {
 		return putXmlAsSecurityUser(path, xml);
     }
 
-	public ResponseEntity<String> putXmlAsSecurityUser(String path, String xml) {
+	public ManageResponse putXmlAsSecurityUser(String path, String xml) {
 		logSecurityUserRequest(path, "XML", "PUT");
-		return securityUserRestTemplate.exchange(buildUri(path), HttpMethod.PUT, buildXmlEntity(xml), String.class);
+		return new RestTemplateResponse(securityUserRestTemplate.exchange(buildUri(path), HttpMethod.PUT, buildXmlEntity(xml), String.class));
 	}
 
-    public ResponseEntity<String> postJson(String path, String json) {
+    public ManageResponse postJson(String path, String json) {
         logRequest(path, "JSON", "POST");
-        return restTemplate.exchange(buildUri(path), HttpMethod.POST, buildJsonEntity(json), String.class);
+        return new RestTemplateResponse(restTemplate.exchange(buildUri(path), HttpMethod.POST, buildJsonEntity(json), String.class));
     }
 
 	/**
@@ -161,18 +164,18 @@ public class ManageClient extends LoggingObject {
 	 * @return
 	 */
 	@Deprecated
-    public ResponseEntity<String> postJsonAsAdmin(String path, String json) {
+    public ManageResponse postJsonAsAdmin(String path, String json) {
 		return postJsonAsSecurityUser(path, json);
     }
 
-	public ResponseEntity<String> postJsonAsSecurityUser(String path, String json) {
+	public ManageResponse postJsonAsSecurityUser(String path, String json) {
 		logSecurityUserRequest(path, "JSON", "POST");
-		return securityUserRestTemplate.exchange(buildUri(path), HttpMethod.POST, buildJsonEntity(json), String.class);
+		return new RestTemplateResponse(securityUserRestTemplate.exchange(buildUri(path), HttpMethod.POST, buildJsonEntity(json), String.class));
 	}
 
-    public ResponseEntity<String> postXml(String path, String xml) {
+    public ManageResponse postXml(String path, String xml) {
         logRequest(path, "XML", "POST");
-        return restTemplate.exchange(buildUri(path), HttpMethod.POST, buildXmlEntity(xml), String.class);
+        return new RestTemplateResponse(restTemplate.exchange(buildUri(path), HttpMethod.POST, buildXmlEntity(xml), String.class));
     }
 
 	/**
@@ -183,16 +186,16 @@ public class ManageClient extends LoggingObject {
 	 * @return
 	 */
 	@Deprecated
-    public ResponseEntity<String> postXmlAsAdmin(String path, String xml) {
+    public ManageResponse postXmlAsAdmin(String path, String xml) {
 		return postXmlAsSecurityUser(path, xml);
     }
 
-	public ResponseEntity<String> postXmlAsSecurityUser(String path, String xml) {
+	public ManageResponse postXmlAsSecurityUser(String path, String xml) {
 		logSecurityUserRequest(path, "XML", "POST");
-		return securityUserRestTemplate.exchange(buildUri(path), HttpMethod.POST, buildXmlEntity(xml), String.class);
+		return new RestTemplateResponse(securityUserRestTemplate.exchange(buildUri(path), HttpMethod.POST, buildXmlEntity(xml), String.class));
 	}
 
-	public ResponseEntity<String> postForm(String path, String... params) {
+	public ManageResponse postForm(String path, String... params) {
         logRequest(path, "form", "POST");
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
@@ -201,7 +204,7 @@ public class ManageClient extends LoggingObject {
             map.add(params[i], params[i + 1]);
         }
         HttpEntity<MultiValueMap<String, String>> entity = new HttpEntity<MultiValueMap<String, String>>(map, headers);
-        return restTemplate.exchange(buildUri(path), HttpMethod.POST, entity, String.class);
+        return new RestTemplateResponse(restTemplate.exchange(buildUri(path), HttpMethod.POST, entity, String.class));
     }
 
     public String getXmlString(String path) {
