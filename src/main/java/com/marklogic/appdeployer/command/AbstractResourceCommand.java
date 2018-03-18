@@ -114,8 +114,8 @@ public abstract class AbstractResourceCommand extends AbstractUndoableCommand {
 	    }
     	ManageResponse response = receipt.getResponse();
     	if (response != null) {
-		    URI uri = response.getLocationHeader();
-		    if (uri != null && "/admin/v1/timestamp".equals(uri.getPath())) {
+		    String location = response.getLocationHeader();
+		    if (location != null && "/admin/v1/timestamp".equals(location)) {
 			    AdminManager adminManager = context.getAdminManager();
 			    if (adminManager != null) {
 				    adminManager.waitForRestart();

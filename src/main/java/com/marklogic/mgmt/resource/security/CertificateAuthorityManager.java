@@ -2,9 +2,10 @@ package com.marklogic.mgmt.resource.security;
 
 import com.marklogic.mgmt.AbstractManager;
 import com.marklogic.mgmt.ManageClient;
+import com.marklogic.mgmt.ManageResponse;
 import com.marklogic.rest.util.ResourcesFragment;
-import org.springframework.http.*;
-import org.springframework.web.client.RestTemplate;
+import okhttp3.Request;
+import okhttp3.RequestBody;
 
 public class CertificateAuthorityManager extends AbstractManager {
 
@@ -19,15 +20,12 @@ public class CertificateAuthorityManager extends AbstractManager {
 		return true;
 	}
 
-    public ResponseEntity<String> create(String payload) {
-        RestTemplate t = manageClient.getRestTemplate();
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.TEXT_PLAIN);
-
-        HttpEntity<String> entity = new HttpEntity<String>(payload, headers);
-        ResponseEntity<String> response = t.exchange(manageClient.buildUri("/manage/v2/certificate-authorities"),
-                HttpMethod.POST, entity, String.class);
-        return response;
+    public ManageResponse create(String payload) {
+    	Request request = new Request.Builder()
+		    .url(manageClient.buildHttpUrl("/manage/v2/certificate-authorities"))
+		    .post(RequestBody.create(okhttp3.MediaType.parse("text/plain"), payload))
+		    .build();
+    	return manageClient.executeRequest(request);
     }
 
     public ResourcesFragment getAsXml() {

@@ -1,12 +1,11 @@
 package com.marklogic.appdeployer.command.security;
 
-import org.junit.Before;
-
 import com.marklogic.appdeployer.command.AbstractManageResourceTest;
 import com.marklogic.appdeployer.command.Command;
 import com.marklogic.mgmt.resource.ResourceManager;
 import com.marklogic.mgmt.resource.security.UserManager;
 import com.marklogic.rest.util.Fragment;
+import org.junit.Before;
 
 public class ManageUsersTest extends AbstractManageResourceTest {
 

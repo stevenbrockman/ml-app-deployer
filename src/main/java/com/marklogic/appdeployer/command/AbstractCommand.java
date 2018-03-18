@@ -196,13 +196,13 @@ public abstract class AbstractCommand extends LoggingObject implements Command {
      * @param context
      */
     protected void storeTokenForResourceId(SaveReceipt receipt, CommandContext context) {
-        URI location = receipt.getResponse() != null ? receipt.getResponse().getLocationHeader() : null;
+        String location = receipt.getResponse() != null ? receipt.getResponse().getLocationHeader() : null;
 
         String idValue = null;
         String resourceName = null;
 
         if (location != null) {
-            String[] tokens = location.getPath().split("/");
+            String[] tokens = location.split("/");
             idValue = tokens[tokens.length - 1];
             resourceName = tokens[tokens.length - 2];
         } else {

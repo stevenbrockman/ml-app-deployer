@@ -1,10 +1,9 @@
 package com.marklogic.mgmt.resource.forests;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.marklogic.mgmt.resource.AbstractResourceManager;
 import com.marklogic.mgmt.ManageClient;
+import com.marklogic.mgmt.resource.AbstractResourceManager;
 import com.marklogic.rest.util.Fragment;
-import org.springframework.web.client.HttpClientErrorException;
 
 import java.util.HashMap;
 import java.util.Iterator;
@@ -112,17 +111,6 @@ public class ForestManager extends AbstractResourceManager {
         Fragment f = getManageClient().getXml("/manage/v2/forests");
         return f.elementExists(format("/node()/f:list-items/f:list-item[f:nameref = '%s' or f:idref = '%s']", nameOrId,
                 nameOrId));
-    }
-
-    public void attachForest(String forestIdOrName, String databaseIdOrName) {
-        if (isForestAttached(forestIdOrName)) {
-            logger.info(format("Forest %s is already attached to a database, not attaching", forestIdOrName));
-            return;
-        }
-        logger.info(format("Attaching forest %s to database %s", forestIdOrName, databaseIdOrName));
-        String path = format("/manage/v2/forests/%s", forestIdOrName);
-        getManageClient().postForm(path, "state", "attach", "database", databaseIdOrName);
-        logger.info(format("Attached forest %s to database %s", forestIdOrName, databaseIdOrName));
     }
 
     public boolean isForestAttached(String forestIdOrName) {

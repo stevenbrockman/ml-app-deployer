@@ -4,8 +4,8 @@ import com.marklogic.appdeployer.ConfigDir;
 import com.marklogic.appdeployer.command.AbstractCommand;
 import com.marklogic.appdeployer.command.CommandContext;
 import com.marklogic.appdeployer.command.SortOrderConstants;
+import com.marklogic.mgmt.ManageResponse;
 import com.marklogic.mgmt.resource.security.CertificateAuthorityManager;
-import org.springframework.http.ResponseEntity;
 
 import java.io.File;
 
@@ -27,9 +27,9 @@ public class DeployCertificateAuthoritiesCommand extends AbstractCommand {
 						    logger.info("Creating certificate authority from file: " + f.getAbsolutePath());
 					    }
 					    String payload = copyFileToString(f, context);
-					    ResponseEntity<String> response = mgr.create(payload);
+					    ManageResponse response = mgr.create(payload);
 					    if (logger.isInfoEnabled()) {
-						    logger.info("Created certificate authority, location: " + response.getHeaders().getLocation());
+						    logger.info("Created certificate authority, location: " + response.getLocationHeader());
 					    }
 				    }
 			    }

@@ -100,7 +100,7 @@ public class RestApiManager extends LoggingObject {
 			}
 
 			logger.info("Deleting REST API, path: " + path);
-			client.getRestTemplate().exchange(client.buildUri(path), HttpMethod.DELETE, null, String.class);
+			client.delete(path);
 			logger.info("Deleted REST API");
 			return true;
 		} else {

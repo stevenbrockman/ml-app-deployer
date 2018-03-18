@@ -6,7 +6,7 @@ public interface ManageResponse {
 
 	Object getResponseObject();
 
-	URI getLocationHeader();
+	String getLocationHeader();
 
 	String getBody();
 

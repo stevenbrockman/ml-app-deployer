@@ -1,25 +1,26 @@
 package com.marklogic.mgmt;
 
+import com.burgstaller.okhttp.AuthenticationCacheInterceptor;
+import com.burgstaller.okhttp.CachingAuthenticatorDecorator;
+import com.burgstaller.okhttp.digest.CachingAuthenticator;
+import com.burgstaller.okhttp.digest.DigestAuthenticator;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.marklogic.client.ext.helper.LoggingObject;
 import com.marklogic.mgmt.util.ObjectMapperFactory;
 import com.marklogic.rest.util.Fragment;
 import com.marklogic.rest.util.RestConfig;
-import com.marklogic.rest.util.RestTemplateUtil;
+import okhttp3.HttpUrl;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
 import org.jdom2.Namespace;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.MediaType;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
-import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
 import java.io.StringWriter;
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Wraps a RestTemplate with methods that should simplify accessing the Manage API with RestTemplate. Each NounManager
@@ -27,12 +28,16 @@ import java.util.List;
  */
 public class ManageClient extends LoggingObject {
 
+	private final static String JSON_MEDIA_TYPE = "application/json";
+	private final static String XML_MEDIA_TYPE = "application/xml";
+
 	private ManageConfig manageConfig;
-	private RestTemplate restTemplate;
-	private RestTemplate securityUserRestTemplate;
 	private PayloadParser payloadParser;
 
-    /**
+	private OkHttpClient okHttpClient;
+	private OkHttpClient securityUserOkHttpClient;
+
+	/**
      * Can use this constructor when the default values in ManageConfig will work.
      */
     public ManageClient() {
@@ -66,9 +71,20 @@ public class ManageClient extends LoggingObject {
 	    if (logger.isInfoEnabled()) {
 		    logger.info("Initializing ManageClient with manage config of: " + config);
 	    }
-	    this.restTemplate = RestTemplateUtil.newRestTemplate(config);
+	    //this.restTemplate = RestTemplateUtil.newRestTemplate(config);
 
-	    String securityUsername = config.getSecurityUsername();
+		final DigestAuthenticator authenticator = new DigestAuthenticator(new com.burgstaller.okhttp.digest.Credentials(
+			manageConfig.getUsername(), manageConfig.getPassword()
+		));
+		final Map<String, CachingAuthenticator> authCache = new ConcurrentHashMap<>();
+
+		// TODO Add SSL support
+		okHttpClient = new OkHttpClient.Builder()
+			.authenticator(new CachingAuthenticatorDecorator(authenticator, authCache))
+			.addInterceptor(new AuthenticationCacheInterceptor(authCache))
+			.build();
+
+		String securityUsername = config.getSecurityUsername();
 	    if (securityUsername != null && securityUsername.trim().length() > 0 && !securityUsername.equals(config.getUsername())) {
 		    if (logger.isInfoEnabled()) {
 			    logger.info(format("Initializing separate connection to Manage API with user '%s' that must have both manage-admin and security roles", securityUsername));
@@ -79,137 +95,85 @@ public class ManageClient extends LoggingObject {
 		    rc.setConfigureSimpleSsl(config.isConfigureSimpleSsl());
 		    rc.setHostnameVerifier(config.getHostnameVerifier());
 		    rc.setSslContext(config.getSslContext());
-		    this.securityUserRestTemplate = RestTemplateUtil.newRestTemplate(rc);
+
+		    final DigestAuthenticator securityAuthenticator = new DigestAuthenticator(new com.burgstaller.okhttp.digest.Credentials(
+			    manageConfig.getUsername(), manageConfig.getPassword()
+		    ));
+		    final Map<String, CachingAuthenticator> securityAuthCache = new ConcurrentHashMap<>();
+		    securityUserOkHttpClient = new OkHttpClient.Builder()
+			    .authenticator(new CachingAuthenticatorDecorator(securityAuthenticator, securityAuthCache))
+			    .addInterceptor(new AuthenticationCacheInterceptor(securityAuthCache))
+			    .build();
 	    } else {
-		    this.securityUserRestTemplate = restTemplate;
+		    this.securityUserOkHttpClient = this.okHttpClient;
 	    }
     }
 
 	/**
-	 * Use this when you want to provide your own RestTemplate as opposed to using the one that's constructed via a
+	 * Use this when you want to provide your own OkHttpClient as opposed to using the one that's constructed via a
 	 * ManageConfig instance.
 	 *
-	 * @param restTemplate
+	 * @param okHttpClient
 	 */
-	public ManageClient(RestTemplate restTemplate) {
-    	this(restTemplate, restTemplate);
+	public ManageClient(OkHttpClient okHttpClient) {
+    	this(okHttpClient, okHttpClient);
     }
 
 	/**
-	 * Use this when you want to provide your own RestTemplate as opposed to using the one that's constructed via a
+	 * Use this when you want to provide your own OkHttpClient as opposed to using the one that's constructed via a
 	 * ManageConfig instance.
 	 *
-	 * @param restTemplate
-	 * @param adminRestTemplate
+	 * @param okHttpClient
+	 * @param securityUserOkHttpClient
 	 */
-	public ManageClient(RestTemplate restTemplate, RestTemplate adminRestTemplate) {
-    	this.restTemplate = restTemplate;
-    	this.securityUserRestTemplate = adminRestTemplate;
+	public ManageClient(OkHttpClient okHttpClient, OkHttpClient securityUserOkHttpClient) {
+    	this.okHttpClient = okHttpClient;
+    	this.securityUserOkHttpClient = securityUserOkHttpClient;
     }
 
     public ManageResponse putJson(String path, String json) {
         logRequest(path, "JSON", "PUT");
-        return new RestTemplateResponse(restTemplate.exchange(buildUri(path), HttpMethod.PUT, buildJsonEntity(json), String.class));
-    }
-
-	/**
-	 * Use putJsonAsSecurityUser instead.
-	 *
-	 * @param path
-	 * @param json
-	 * @return
-	 */
-	@Deprecated
-    public ManageResponse putJsonAsAdmin(String path, String json) {
-		return putJsonAsSecurityUser(path, json);
+        return executeRequest(request(path).put(jsonBody(json)).build());
     }
 
 	public ManageResponse putJsonAsSecurityUser(String path, String json) {
 		logSecurityUserRequest(path, "JSON", "PUT");
-		return new RestTemplateResponse(securityUserRestTemplate.exchange(buildUri(path), HttpMethod.PUT, buildJsonEntity(json), String.class));
+		return executeRequest(request(path).put(jsonBody(json)).build());
 	}
 
     public ManageResponse putXml(String path, String xml) {
         logRequest(path, "XML", "PUT");
-        return new RestTemplateResponse(restTemplate.exchange(buildUri(path), HttpMethod.PUT, buildXmlEntity(xml), String.class));
-    }
-
-	/**
-	 * Use putXmlAsSecurityUser.
-	 *
-	 * @param path
-	 * @param xml
-	 * @return
-	 */
-	@Deprecated
-    public ManageResponse putXmlAsAdmin(String path, String xml) {
-		return putXmlAsSecurityUser(path, xml);
+	    return executeRequest(request(path).put(xmlBody(xml)).build());
     }
 
 	public ManageResponse putXmlAsSecurityUser(String path, String xml) {
 		logSecurityUserRequest(path, "XML", "PUT");
-		return new RestTemplateResponse(securityUserRestTemplate.exchange(buildUri(path), HttpMethod.PUT, buildXmlEntity(xml), String.class));
+		return executeSecurityUserRequest(request(path).put(xmlBody(xml)).build());
 	}
 
     public ManageResponse postJson(String path, String json) {
         logRequest(path, "JSON", "POST");
-        return new RestTemplateResponse(restTemplate.exchange(buildUri(path), HttpMethod.POST, buildJsonEntity(json), String.class));
-    }
-
-	/**
-	 * Use postJsonAsSecurityUser instead.
-	 *
-	 * @param path
-	 * @param json
-	 * @return
-	 */
-	@Deprecated
-    public ManageResponse postJsonAsAdmin(String path, String json) {
-		return postJsonAsSecurityUser(path, json);
+        return executeRequest(request(path).post(jsonBody(json)).build());
     }
 
 	public ManageResponse postJsonAsSecurityUser(String path, String json) {
 		logSecurityUserRequest(path, "JSON", "POST");
-		return new RestTemplateResponse(securityUserRestTemplate.exchange(buildUri(path), HttpMethod.POST, buildJsonEntity(json), String.class));
+		return executeSecurityUserRequest(request(path).post(jsonBody(json)).build());
 	}
 
     public ManageResponse postXml(String path, String xml) {
         logRequest(path, "XML", "POST");
-        return new RestTemplateResponse(restTemplate.exchange(buildUri(path), HttpMethod.POST, buildXmlEntity(xml), String.class));
-    }
-
-	/**
-	 * Use postXmlAsSecurityUser instead.
-	 *
-	 * @param path
-	 * @param xml
-	 * @return
-	 */
-	@Deprecated
-    public ManageResponse postXmlAsAdmin(String path, String xml) {
-		return postXmlAsSecurityUser(path, xml);
+	    return executeRequest(request(path).post(xmlBody(xml)).build());
     }
 
 	public ManageResponse postXmlAsSecurityUser(String path, String xml) {
 		logSecurityUserRequest(path, "XML", "POST");
-		return new RestTemplateResponse(securityUserRestTemplate.exchange(buildUri(path), HttpMethod.POST, buildXmlEntity(xml), String.class));
+		return executeSecurityUserRequest(request(path).post(xmlBody(xml)).build());
 	}
-
-	public ManageResponse postForm(String path, String... params) {
-        logRequest(path, "form", "POST");
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-        MultiValueMap<String, String> map = new LinkedMultiValueMap<String, String>();
-        for (int i = 0; i < params.length; i += 2) {
-            map.add(params[i], params[i + 1]);
-        }
-        HttpEntity<MultiValueMap<String, String>> entity = new HttpEntity<MultiValueMap<String, String>>(map, headers);
-        return new RestTemplateResponse(restTemplate.exchange(buildUri(path), HttpMethod.POST, entity, String.class));
-    }
 
     public String getXmlString(String path) {
         logRequest(path, "XML", "GET");
-        return getRestTemplate().getForObject(buildUri(path), String.class);
+        return executeRequest(request(path).get().build()).getBody();
     }
 
     public Fragment getXml(String path, String... namespacePrefixesAndUris) {
@@ -221,33 +185,10 @@ public class ManageClient extends LoggingObject {
         return new Fragment(xml, list.toArray(new Namespace[] {}));
     }
 
-	/**
-	 * Use getXmlStringAsSecurityUser instead.
-	 *
-	 * @param path
-	 * @return
-	 */
-	@Deprecated
-	public String getXmlStringAsAdmin(String path) {
-		return getXmlStringAsSecurityUser(path);
-	}
-
 	public String getXmlStringAsSecurityUser(String path) {
 		logSecurityUserRequest(path, "XML", "GET");
-		return securityUserRestTemplate.getForObject(buildUri(path), String.class);
+		return executeSecurityUserRequest(request(path).build()).getBody();
 	}
-
-	/**
-	 * Use getXmlAsSecurityUser instead.
-	 *
-	 * @param path
-	 * @param namespacePrefixesAndUris
-	 * @return
-	 */
-	@Deprecated
-    public Fragment getXmlAsAdmin(String path, String... namespacePrefixesAndUris) {
-		return getXmlAsSecurityUser(path, namespacePrefixesAndUris);
-    }
 
 	public Fragment getXmlAsSecurityUser(String path, String... namespacePrefixesAndUris) {
 		String xml = getXmlStringAsSecurityUser(path);
@@ -260,99 +201,22 @@ public class ManageClient extends LoggingObject {
 
     public String getJson(String path) {
         logRequest(path, "JSON", "GET");
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("Accept", MediaType.APPLICATION_JSON_VALUE);
-        return getRestTemplate().exchange(buildUri(path), HttpMethod.GET, new HttpEntity<>(headers), String.class)
-                .getBody();
-    }
-
-    public String getJson(URI uri) {
-        logRequest(uri.toString(), "JSON", "GET");
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("Accept", MediaType.APPLICATION_JSON_VALUE);
-        return getRestTemplate().exchange(uri, HttpMethod.GET, new HttpEntity<>(headers), String.class).getBody();
-    }
-
-	/**
-	 * Use getJsonAsSecurityUser instead.
-	 *
-	 * @param path
-	 * @return
-	 */
-	@Deprecated
-    public String getJsonAsAdmin(String path) {
-		return getJsonAsSecurityUser(path);
+        return executeRequest(request(path).header("Accept", JSON_MEDIA_TYPE).build()).getBody();
     }
 
 	public String getJsonAsSecurityUser(String path) {
 		logSecurityUserRequest(path, "JSON", "GET");
-		HttpHeaders headers = new HttpHeaders();
-		headers.set("Accept", MediaType.APPLICATION_JSON_VALUE);
-		return securityUserRestTemplate.exchange(buildUri(path), HttpMethod.GET, new HttpEntity<>(headers), String.class)
-			.getBody();
+		return executeSecurityUserRequest(request(path).header("Accept", JSON_MEDIA_TYPE).build()).getBody();
 	}
 
 	public void delete(String path) {
         logRequest(path, "", "DELETE");
-        restTemplate.delete(buildUri(path));
-    }
-
-	/**
-	 * Use deleteAsSecurityUser instead.
-	 *
-	 * @param path
-	 */
-	@Deprecated
-    public void deleteAsAdmin(String path) {
-		deleteAsSecurityUser(path);
+        executeRequest(request(path).delete().build());
     }
 
     public void deleteAsSecurityUser(String path) {
 	    logSecurityUserRequest(path, "", "DELETE");
-	    securityUserRestTemplate.delete(buildUri(path));
-    }
-
-	/**
-	 * Per #187 and version 3.1.0, when an HttpEntity is constructed with a JSON payload, this method will check to see
-	 * if it should "clean" the JSON via the Jackson library, which is primarily intended for removing comments from
-	 * JSON (comments that Jackson allows, but aren't allowed by the JSON spec). This behavior is disabled by default.
-	 *
-	 * @param json
-	 * @return
-	 */
-	public HttpEntity<String> buildJsonEntity(String json) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        if (manageConfig != null && manageConfig.isCleanJsonPayloads()) {
-        	json = cleanJsonPayload(json);
-        }
-        return new HttpEntity<String>(json, headers);
-    }
-
-	/**
-	 * Per #187, and version 3.1.0, this will also use Jackson to remove any comments in the JSON payload, as Jackson
-	 * is now configured to ignore comments, but we still don't want to include them in the payload sent to MarkLogic.
-	 * @param payload
-	 * @return
-	 */
-	protected String cleanJsonPayload(String payload) {
-		if (payloadParser == null) {
-			payloadParser = new PayloadParser();
-		}
-		JsonNode node = payloadParser.parseJson(payload);
-		StringWriter sw = new StringWriter();
-		try {
-			ObjectMapperFactory.getObjectMapper().writer().writeValue(sw, node);
-		} catch (IOException ex) {
-			throw new RuntimeException("Unable to write JSON payload as JsonNode back out to a string, cause: " + ex.getMessage());
-		}
-		return sw.toString();
-	}
-
-	public HttpEntity<String> buildXmlEntity(String xml) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_XML);
-        return new HttpEntity<String>(xml, headers);
+	    executeSecurityUserRequest(request(path).delete().build());
     }
 
     protected void logRequest(String path, String contentType, String method) {
@@ -370,47 +234,91 @@ public class ManageClient extends LoggingObject {
         }
     }
 
-	public URI buildUri(String path) {
-        return manageConfig.buildUri(path);
-    }
-
-    public RestTemplate getRestTemplate() {
-        return restTemplate;
-    }
-
 	/**
-	 * Use getSecurityUserRestTemplate.
-	 *
+	 * Per #187, and version 3.1.0, this will also use Jackson to remove any comments in the JSON payload, as Jackson
+	 * is now configured to ignore comments, but we still don't want to include them in the payload sent to MarkLogic.
+	 * @param payload
 	 * @return
 	 */
-	@Deprecated
-	public RestTemplate getAdminRestTemplate() {
-		return getSecurityUserRestTemplate();
+	private String cleanJsonPayload(String payload) {
+		if (payloadParser == null) {
+			payloadParser = new PayloadParser();
+		}
+		JsonNode node = payloadParser.parseJson(payload);
+		StringWriter sw = new StringWriter();
+		try {
+			ObjectMapperFactory.getObjectMapper().writer().writeValue(sw, node);
+		} catch (IOException ex) {
+			throw new RuntimeException("Unable to write JSON payload as JsonNode back out to a string, cause: " + ex.getMessage());
+		}
+		return sw.toString();
+	}
+
+	/**
+	 * Per #187 and version 3.1.0, when an HttpEntity is constructed with a JSON payload, this method will check to see
+	 * if it should "clean" the JSON via the Jackson library, which is primarily intended for removing comments from
+	 * JSON (comments that Jackson allows, but aren't allowed by the JSON spec). This behavior is disabled by default.
+	 *
+	 * @param json
+	 * @return
+	 */
+	protected RequestBody jsonBody(String json) {
+		if (manageConfig != null && manageConfig.isCleanJsonPayloads()) {
+			json = cleanJsonPayload(json);
+		}
+		return RequestBody.create(okhttp3.MediaType.parse(JSON_MEDIA_TYPE), json);
+	}
+
+	protected RequestBody xmlBody(String xml) {
+		return RequestBody.create(okhttp3.MediaType.parse(XML_MEDIA_TYPE), xml);
+	}
+
+	protected Request.Builder request(String path) {
+		return new Request.Builder().url(buildHttpUrl(path));
+	}
+
+	public OkHttpResponse executeRequest(Request request) {
+		try {
+			return new OkHttpResponse(okHttpClient.newCall(request).execute());
+		} catch (IOException ex) {
+			throw new RuntimeException(ex);
+		}
+	}
+
+	public OkHttpResponse executeSecurityUserRequest(Request request) {
+		try {
+			return new OkHttpResponse(securityUserOkHttpClient.newCall(request).execute());
+		} catch (IOException ex) {
+			throw new RuntimeException(ex);
+		}
+	}
+
+	public HttpUrl buildHttpUrl(String path) {
+		return new HttpUrl.Builder()
+			.scheme(manageConfig.getScheme())
+			.host(manageConfig.getHost())
+			.port(manageConfig.getPort())
+			.encodedPath(path.replace(" ", "+"))
+			.build();
+	}
+
+	public OkHttpClient getOkHttpClient() {
+        return okHttpClient;
     }
 
     public ManageConfig getManageConfig() {
         return manageConfig;
     }
 
-	public void setRestTemplate(RestTemplate restTemplate) {
-		this.restTemplate = restTemplate;
+	public void setOkHttpClient(OkHttpClient okHttpClient) {
+		this.okHttpClient = okHttpClient;
 	}
 
-	/**
-	 * Use setSecurityUserRestTemplate.
-	 *
-	 * @param restTemplate
-	 */
-	@Deprecated
-	public void setAdminRestTemplate(RestTemplate restTemplate) {
-		setSecurityUserRestTemplate(restTemplate);
+	public OkHttpClient getSecurityUserOkHttpClient() {
+		return securityUserOkHttpClient;
 	}
 
-	public RestTemplate getSecurityUserRestTemplate() {
-		return securityUserRestTemplate;
-	}
-
-	public void setSecurityUserRestTemplate(RestTemplate restTemplate) {
-		this.securityUserRestTemplate = restTemplate;
+	public void setSecurityUserOkHttpClient(OkHttpClient securityUserOkHttpClient) {
+		this.securityUserOkHttpClient = securityUserOkHttpClient;
 	}
 }

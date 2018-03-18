@@ -18,8 +18,8 @@ public class RestTemplateResponse implements ManageResponse {
 	}
 
 	@Override
-	public URI getLocationHeader() {
-		return responseEntity.getHeaders().getLocation();
+	public String getLocationHeader() {
+		return responseEntity.getHeaders().getLocation().getPath();
 	}
 
 	@Override
