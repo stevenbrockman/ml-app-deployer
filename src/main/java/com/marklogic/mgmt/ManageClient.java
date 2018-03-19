@@ -9,10 +9,7 @@ import com.marklogic.client.ext.helper.LoggingObject;
 import com.marklogic.mgmt.util.ObjectMapperFactory;
 import com.marklogic.rest.util.Fragment;
 import com.marklogic.rest.util.RestConfig;
-import okhttp3.HttpUrl;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.RequestBody;
+import okhttp3.*;
 import org.jdom2.Namespace;
 
 import java.io.IOException;
@@ -279,7 +276,8 @@ public class ManageClient extends LoggingObject {
 
 	public OkHttpResponse executeRequest(Request request) {
 		try {
-			return new OkHttpResponse(okHttpClient.newCall(request).execute());
+			Response response = okHttpClient.newCall(request).execute();
+			return new OkHttpResponse(response);
 		} catch (IOException ex) {
 			throw new RuntimeException(ex);
 		}
@@ -294,12 +292,25 @@ public class ManageClient extends LoggingObject {
 	}
 
 	public HttpUrl buildHttpUrl(String path) {
-		return new HttpUrl.Builder()
+		path = path.replace(" ", "+");
+		String query;
+		String encodedPath;
+		int pos = path.indexOf("?");
+		if (pos > -1) {
+			encodedPath = path.substring(0, pos);
+			query = path.substring(pos + 1);
+		} else {
+			encodedPath = path;
+			query = null;
+		}
+		HttpUrl url = new HttpUrl.Builder()
 			.scheme(manageConfig.getScheme())
 			.host(manageConfig.getHost())
 			.port(manageConfig.getPort())
-			.encodedPath(path.replace(" ", "+"))
+			.encodedPath(encodedPath)
+			.query(query)
 			.build();
+		return url;
 	}
 
 	public OkHttpClient getOkHttpClient() {
