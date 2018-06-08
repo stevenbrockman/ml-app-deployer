@@ -45,13 +45,13 @@ public class DeployRolesWithDependenciesTest extends AbstractAppDeployerTest {
 	 */
 	@Test
 	public void testEvenMoreRoles() {
-		appConfig.getFirstConfigDir().setBaseDir(new File("src/test/resources/sample-app/even-more-roles-with-dependencies"));
+		appConfig.getFirstConfigDir().setBaseDir(new File("src/test/resources/sample-app/more-roles-with-dependencies"));
 
 		initializeAppDeployer(new DeployRolesCommand());
 		try {
 			deploySampleApp();
 		} finally {
-			undeploySampleApp();
+			//undeploySampleApp();
 		}
 	}
 

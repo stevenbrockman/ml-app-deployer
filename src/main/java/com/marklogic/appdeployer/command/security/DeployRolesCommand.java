@@ -3,12 +3,14 @@ package com.marklogic.appdeployer.command.security;
 import com.marklogic.appdeployer.command.AbstractResourceCommand;
 import com.marklogic.appdeployer.command.CommandContext;
 import com.marklogic.appdeployer.command.SortOrderConstants;
+import com.marklogic.mgmt.SaveReceipt;
 import com.marklogic.mgmt.api.API;
 import com.marklogic.mgmt.api.security.Role;
 import com.marklogic.mgmt.mapper.DefaultResourceMapper;
 import com.marklogic.mgmt.mapper.ResourceMapper;
 import com.marklogic.mgmt.resource.ResourceManager;
 import com.marklogic.mgmt.resource.security.RoleManager;
+import org.springframework.http.ResponseEntity;
 
 import java.io.File;
 import java.util.HashSet;
@@ -35,17 +37,57 @@ public class DeployRolesCommand extends AbstractResourceCommand {
 	 */
 	@Override
 	public void execute(CommandContext context) {
-		removeRolesAndPermissionsDuringDeployment = true;
-		if (logger.isInfoEnabled()) {
-			logger.info("Deploying roles minus their default permissions and references to roles");
+		if (true) {
+			removeRolesAndPermissionsDuringDeployment = true;
+			deployViaCma(context);
+			roleNamesThatDontNeedToBeRedeployed = new HashSet<>();
+			removeRolesAndPermissionsDuringDeployment = false;
+			deployViaCma(context);
+		} else {
+			removeRolesAndPermissionsDuringDeployment = true;
+			if (logger.isInfoEnabled()) {
+				logger.info("Deploying roles minus their default permissions and references to roles");
+			}
+			roleNamesThatDontNeedToBeRedeployed = new HashSet<>();
+			super.execute(context);
+			if (logger.isInfoEnabled()) {
+				logger.info("Redeploying roles that have default permissions and/or references to roles");
+			}
+			removeRolesAndPermissionsDuringDeployment = false;
+			super.execute(context);
 		}
-		roleNamesThatDontNeedToBeRedeployed = new HashSet<>();
-		super.execute(context);
-		if (logger.isInfoEnabled()) {
-			logger.info("Redeploying roles that have default permissions and/or references to roles");
+	}
+
+	protected void deployViaCma(CommandContext context) {
+		RoleManager mgr = new RoleManager(context.getManageClient());
+		StringBuilder sb = new StringBuilder("{\"config\":[{\"role\":[");
+		boolean firstOne = true;
+		for (File resourceDir : getResourceDirs(context)) {
+			for (File f : listFilesInDirectory(resourceDir, context)) {
+				if (logger.isInfoEnabled()) {
+					logger.info("Processing file: " + f.getAbsolutePath());
+				}
+
+				String payload = copyFileToString(f, context);
+				mgr = (RoleManager)adjustResourceManagerForPayload(mgr, context, payload);
+				payload = adjustPayloadBeforeSavingResource(mgr, context, f, payload);
+
+				// TODO Unmarshal first, then write out as JSON
+				if (!firstOne) {
+					sb.append(",");
+				}
+				sb.append(payload);
+
+				firstOne = false;
+			}
 		}
-		removeRolesAndPermissionsDuringDeployment = false;
-		super.execute(context);
+		sb.append("]}]}");
+
+		logger.info(sb.toString());
+
+		ResponseEntity<String> response = context.getManageClient().postJson("/manage/v3", sb.toString());
+		logger.info(response.getBody());
+		logger.info(response.getStatusCodeValue() + "");
 	}
 
 	/**
