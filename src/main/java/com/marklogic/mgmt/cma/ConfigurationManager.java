@@ -3,7 +3,9 @@ package com.marklogic.mgmt.cma;
 import com.marklogic.mgmt.AbstractManager;
 import com.marklogic.mgmt.ManageClient;
 import com.marklogic.mgmt.SaveReceipt;
+import com.marklogic.rest.util.MgmtResponseErrorHandler;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.client.HttpClientErrorException;
 
 /**
  * This doesn't extend AbstractResourceManager because a configuration isn't really a resource, it's a collection of
@@ -15,10 +17,27 @@ import org.springframework.http.ResponseEntity;
  */
 public class ConfigurationManager extends AbstractManager {
 
+	public final static String PATH = "/manage/v3";
+
 	private ManageClient manageClient;
 
 	public ConfigurationManager(ManageClient manageClient) {
 		this.manageClient = manageClient;
+	}
+
+	public boolean endpointExists() {
+		try {
+			MgmtResponseErrorHandler.errorLoggingEnabled = false;
+			if (logger.isInfoEnabled()) {
+				logger.info("Checking to see if Configuration Management API is available at: " + PATH);
+			}
+			manageClient.postJson(PATH, "{}");
+			return true;
+		} catch (HttpClientErrorException ex) {
+			return false;
+		} finally {
+			MgmtResponseErrorHandler.errorLoggingEnabled = true;
+		}
 	}
 
 	public SaveReceipt save(String payload) {
@@ -31,13 +50,13 @@ public class ConfigurationManager extends AbstractManager {
 			logger.info("Applying configuration " + configurationName);
 		}
 
-		final String path = "/manage/v3";
-		ResponseEntity<String> response = postPayload(manageClient, path, payload);
+		ResponseEntity<String> response = postPayload(manageClient, PATH, payload);
 
 		if (logger.isInfoEnabled()) {
 			logger.info("Applied configuration " + configurationName);
 		}
 
-		return new SaveReceipt(null, payload, path, response);
+		return new SaveReceipt(null, payload, PATH, response);
 	}
+
 }
