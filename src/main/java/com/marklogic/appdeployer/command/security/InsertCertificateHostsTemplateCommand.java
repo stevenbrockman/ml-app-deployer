@@ -1,13 +1,13 @@
 package com.marklogic.appdeployer.command.security;
 
-import java.io.File;
-import java.util.List;
-
 import com.marklogic.appdeployer.ConfigDir;
 import com.marklogic.appdeployer.command.AbstractCommand;
 import com.marklogic.appdeployer.command.CommandContext;
 import com.marklogic.appdeployer.command.SortOrderConstants;
 import com.marklogic.mgmt.resource.security.CertificateTemplateManager;
+
+import java.io.File;
+import java.util.List;
 
 /**
  * Inserts host certificates for each certificate template returned by the Manage API. Host certificates are inserted
@@ -23,6 +23,7 @@ public class InsertCertificateHostsTemplateCommand extends AbstractCommand {
 
 	private String publicCertificateFileExtension = ".crt";
 	private String privateKeyFileExtension = ".key";
+	private boolean matchCertificateOnHostName;
 
 	public InsertCertificateHostsTemplateCommand() {
 		setExecuteSortOrder(SortOrderConstants.INSERT_HOST_CERTIFICATES);
@@ -82,9 +83,7 @@ public class InsertCertificateHostsTemplateCommand extends AbstractCommand {
 	 */
 	protected void insertHostCertificate(CommandContext context, String templateName, File publicCertFile, File privateKeyFile) {
 		CertificateTemplateManager mgr = new CertificateTemplateManager(context.getManageClient());
-		int spot = publicCertFile.getName().toLowerCase().indexOf(".crt");
-		String certHostName = publicCertFile.getName().substring(0, spot);
-		if (!mgr.certificateExists(templateName, certHostName)) {
+		if (!certificateExists(templateName, publicCertFile, mgr)) {
 			logger.info(format("Inserting host certificate for certificate template '%s'", templateName));
 			String pubCertString = copyFileToString(publicCertFile);
 			String privateKeyString = copyFileToString(privateKeyFile);
@@ -96,11 +95,60 @@ public class InsertCertificateHostsTemplateCommand extends AbstractCommand {
 		}
 	}
 
+	/**
+	 * @param templateName
+	 * @param publicCertFile
+	 * @param mgr
+	 * @return
+	 */
+	protected boolean certificateExists(String templateName, File publicCertFile, CertificateTemplateManager mgr) {
+		if (!matchCertificateOnHostName) {
+			logger.info(format("Checking for existing certificate with name '%s'", templateName));
+			return mgr.certificateExists(templateName);
+		}
+
+		String hostName = getCertificateHostName(publicCertFile);
+		if (hostName == null) {
+			logger.warn(format("Could not determine host name from certificate file '%s'; please ensure it ends in '.crt'. " +
+				"Will assume that the certificate template '%s' does not exist.", publicCertFile.getName(), templateName));
+			return false;
+		}
+
+		logger.info(format("Checking for existing certificate with name '%s' and host-name '%s'", templateName, hostName));
+		return mgr.certificateExists(templateName, hostName);
+	}
+
+	/**
+	 * If a user wants to apply the certificate host name when checking to see if a matching certificate exists, then
+	 * the file is required to have a name of "(host-name).crt". This may become more flexible in the future. In the
+	 * meantime, this method is protected to allow for this strategy to be overridden if necessary.
+	 *
+	 * @param certificateFile
+	 * @return
+	 */
+	protected String getCertificateHostName(File certificateFile) {
+		if (certificateFile == null) {
+			return null;
+		}
+		final String suffix = ".crt";
+		String filename = certificateFile.getName().toLowerCase();
+		return filename.endsWith(suffix) ? filename.substring(0, filename.length() - suffix.length()) : null;
+	}
+
 	public void setPublicCertificateFileExtension(String publicCertificateFileExtension) {
 		this.publicCertificateFileExtension = publicCertificateFileExtension;
 	}
 
 	public void setPrivateKeyFileExtension(String privateKeyFileExtension) {
 		this.privateKeyFileExtension = privateKeyFileExtension;
+	}
+
+	/**
+	 *
+	 * @param matchCertificateOnHostName if set to true, then when a host certificate is installed, the check for
+	 *                                   whether or not a matching certificate exists will be based on the
+	 */
+	public void setMatchCertificateOnHostName(boolean matchCertificateOnHostName) {
+		this.matchCertificateOnHostName = matchCertificateOnHostName;
 	}
 }
